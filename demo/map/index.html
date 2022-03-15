@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+
+    <link rel="stylesheet" href="./css/absolute.css" />
+    <script src="../../js/PanZoom.js"></script>
+    <script src="https://code.jquery.com/jquery-3.4.1.js"></script>
+    <script>
+
+$(document).ready(function(){
+    let panzoom = new PanZoom($('#content'), {
+        minScale: .1,
+        maxScale: 10.,
+        zoomFactor: .1,
+        zoomConstraintContainer: true
+    });
+    $('#zoom-in').on('click', function(e){
+        panzoom.zoomIn();
+    })
+    $('#zoom-out').on('click', function(e){
+        panzoom.zoomOut();
+    })
+    window.addEventListener("resize", function(){
+        panzoom.resize();
+    });
+})
+    </script>
+</head>
+<body>
+    <div id='debug'></div>
+    <header>Demo</header>
+    <div id="viewport">
+        <div id="overlay-zoom">
+            <div id='zoom-in'>+</div>
+            <div id='zoom-out'>-</div>
+        </div>
+        <div id="content">
+            <img id="base-layer" src="./img/OrteliusWorldMap1570.jpg"/>
+            <img id="svg-layer" src="./img/OrteliusWorldMap1570.svg"/>
+        </div>
+    </div>
+    <footer>&copy; Gerben van Eerten</footer>
+</body>
