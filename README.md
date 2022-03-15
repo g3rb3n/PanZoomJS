@@ -1,8 +1,8 @@
-= Introduction =
+# Introduction
 A Javascript pan zoom library for panning and zooming contents of an element with mouse and touch.
 
-= Example =
-== HTML ==
+# Example
+## HTML
 ```
 <div id="viewport">
     <div id="content">
@@ -12,7 +12,7 @@ A Javascript pan zoom library for panning and zooming contents of an element wit
 </div>
 ```
 
-== Javascript ==
+## Javascript
 ```
 new PanZoom($('#content'),{
     minScale: .1,
@@ -22,7 +22,7 @@ new PanZoom($('#content'),{
 });
 ```
 
-== CSS ==
+## CSS
 ```
 #viewport {
     position: absolute;
