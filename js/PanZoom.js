@@ -21,6 +21,7 @@ function PanZoom(target, config) {
     this.zoomFactor =  config.zoomFactor || 0.1;
     this.limitZoomToContainer = config.limitZoomToContainer || false;
     this.limitZoomToContent = config.limitZoomToContent || false;
+    this.debugEnabled = config.debug || false;
 
     this.container = this.target.parent();
     this.size = {w: this.target.width(), h: this.target.height()};
@@ -45,6 +46,9 @@ function PanZoom(target, config) {
     this.container.on("mousedown", function (e) {
         self.mouseDown(e);
     });
+    this.container.on("mouseleave", function (e) {
+        self.mouseLeave(e);
+    });
     this.container.on("touchstart", function (e) {
         self.touchStart(e);
     });
@@ -64,10 +68,12 @@ function PanZoom(target, config) {
 }
 
 PanZoom.prototype.debugC = function (key, msg) {
+    if (!this.debugEnabled) return;
     console.log(`PanZoom:${key}: ${msg}`);
 };
 
 PanZoom.prototype.debug = function (key, msg) {
+    if (!this.debugEnabled) return;
     console.log(`PanZoom:${key}: ${msg}`);
     let container = document.getElementById("debug");
     let row = container.querySelector('[data-key='+key+']');
@@ -153,18 +159,55 @@ PanZoom.prototype.mouseUp = function (e) {
     this.mousePanStarted = false;
 };
 
+PanZoom.prototype.mouseLeave = function (e) {
+    this.debug('mouseUp', `${e.pageX},${e.pageY}`);
+    this.releaseMouseEvents();
+    this.mousePanStarted = false;
+};
+
+PanZoom.prototype.mouseScroll = function (e) {
+    e = e || window.event;
+    e.preventDefault();
+    this.debug('mouseScroll', `${e.pageX},${e.pageY}`);
+
+    this.mousePanStarted = false;
+
+    var offset = this.container.offset();
+    this.zoomPoint.x = e.pageX - offset.left;
+    this.zoomPoint.y = e.pageY - offset.top;
+
+    this.delta = e.delta || e.originalEvent.wheelDelta;
+    if (this.delta === undefined) {
+        this.delta = -e.originalEvent.detail;      //we are on firefox
+    }
+    this.delta = Math.max(-1,Math.min(1,this.delta)); // cap the this.delta to [-1,1] for cross browser consistency
+
+    // determine the point on where the slide is zoomed in
+    this.zoomTarget.x = (this.zoomPoint.x - this.pos.x)/this.scale;
+    this.zoomTarget.y = (this.zoomPoint.y - this.pos.y)/this.scale;
+
+    this.debug('mouseScrollDelta', this.delta);
+    // apply zoom
+    this.scale += this.delta * this.zoomFactor * this.scale;
+    this.scale = Math.max(this.minScale,Math.min(this.maxScale,this.scale));
+    this.debug('mouseScrollZoom', this.scale);
+
+    // calculate x and y based on zoom
+    this.pos.x = -this.zoomTarget.x * this.scale + this.zoomPoint.x;
+    this.pos.y = -this.zoomTarget.y * this.scale + this.zoomPoint.y;
+
+    this.limit();
+    this.update();
+};
+
 PanZoom.prototype.touchStart = function (e) {
     e = e || window.event;
     e.preventDefault();
-
-    e = e.originalEvent;
-
     if (!e.touches) {
         console.error('PanZoom.touchStart: No touches on event object');
         return;
     }
     this.debug('touchStartTouches', e.touches.length);
-
     this.touchStarted = true;
     this.zooming = e.touches.length > 1;
 };
@@ -208,16 +251,16 @@ PanZoom.prototype.touchPan = function (e) {
 
 PanZoom.prototype.touchZoomInit = function (e) {
     let offset = this.container.offset();
-    let e1 = e.touches[1];
     let e0 = e.touches[0];
+    let e1 = e.touches[1];
     this.debug('touchZoomInitXY', `${e0.pageX},${e0.pageY}`);
     var diff = Math.sqrt(Math.pow(e0.pageX - e1.pageX, 2) + Math.pow(e0.pageY - e1.pageY, 2));
     this.touchZoomInitialDiff = diff;
     this.initialScale = this.scale;
     this.zoomPoint.x = (e0.pageX + e1.pageX) / 2 - offset.left;
 	this.zoomPoint.y = (e0.pageY + e1.pageY) / 2 - offset.top;
-    this.zoomTarget.x = (this.zoomPoint.x - this.pos.x)/this.scale;
-    this.zoomTarget.y = (this.zoomPoint.y - this.pos.y)/this.scale;
+    this.zoomTarget.x = (this.zoomPoint.x - this.pos.x) / this.scale;
+    this.zoomTarget.y = (this.zoomPoint.y - this.pos.y) / this.scale;
     this.touchZoomInitialized = true;
 };
 
@@ -240,8 +283,6 @@ PanZoom.prototype.touchZoom = function (e) {
 
 PanZoom.prototype.touchEnd = function (e) {
     this.debug('touchEndTouches', e.touches.length);
-    //if (this.zooming && e.touches.length != 0) return;
-    //this.zooming = false
     if (this.zooming && e.touches.length < 2) {
         this.touchZoomInitialized = false;
         this.touchPanInitialized = false;
@@ -251,39 +292,6 @@ PanZoom.prototype.touchEnd = function (e) {
         this.touchStarted = false;
         this.touchPanInitialized = false;
     }
-};
-
-PanZoom.prototype.mouseScroll = function (e) {
-    e = e || window.event;
-    e.preventDefault();
-    this.debug('mouseScroll', `${e.pageX},${e.pageY}`);
-
-    var offset = this.container.offset();
-    this.zoomPoint.x = e.pageX - offset.left;
-    this.zoomPoint.y = e.pageY - offset.top;
-
-    this.delta = e.delta || e.originalEvent.wheelDelta;
-    if (this.delta === undefined) {
-        this.delta = -e.originalEvent.detail;      //we are on firefox
-    }
-    this.delta = Math.max(-1,Math.min(1,this.delta)); // cap the this.delta to [-1,1] for cross browser consistency
-
-    // determine the point on where the slide is zoomed in
-    this.zoomTarget.x = (this.zoomPoint.x - this.pos.x)/this.scale;
-    this.zoomTarget.y = (this.zoomPoint.y - this.pos.y)/this.scale;
-
-    this.debug('mouseScrollDelta', this.delta);
-    // apply zoom
-    this.scale += this.delta * this.zoomFactor * this.scale;
-    this.scale = Math.max(this.minScale,Math.min(this.maxScale,this.scale));
-    this.debug('mouseScrollZoom', this.scale);
-
-    // calculate x and y based on zoom
-    this.pos.x = -this.zoomTarget.x * this.scale + this.zoomPoint.x;
-    this.pos.y = -this.zoomTarget.y * this.scale + this.zoomPoint.y;
-
-    this.limit();
-    this.update();
 };
 
 PanZoom.prototype.zoomIn = function (e) {
@@ -325,14 +333,12 @@ PanZoom.prototype.zoom = function (delta) {
 PanZoom.prototype.limit = function () {
     let e = point(this.scale * this.size.w + this.pos.x, this.scale * this.size.h + this.pos.y);
     let m = point(this.containerSize.w - this.scale * this.size.w, this.containerSize.h - this.scale * this.size.h);
-    if(e.x < this.containerSize.w)
-        this.pos.x = m.x;
-    if(this.pos.x > 0)
-        this.pos.x = 0;
-    if(e.y < this.containerSize.h)
-        this.pos.y = m.y;
-    if(this.pos.y > 0)
-        this.pos.y = 0;
+    if (this.limitZoomToContent || this.limitZoomToContainer) {
+        if(e.x < this.containerSize.w) this.pos.x = m.x;
+        if(this.pos.x > 0) this.pos.x = 0;
+        if(e.y < this.containerSize.h) this.pos.y = m.y;
+        if(this.pos.y > 0) this.pos.y = 0;
+    }
 };
 
 PanZoom.prototype.update = function () {

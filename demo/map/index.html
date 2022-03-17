@@ -13,7 +13,8 @@ $(document).ready(function(){
         minScale: .1,
         maxScale: 10.,
         zoomFactor: .1,
-        zoomConstraintContainer: true
+        limitZoomToContent: true,
+        debug: false
     });
     $('#zoom-in').on('click', function(e){
         panzoom.zoomIn();
